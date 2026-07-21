@@ -3,35 +3,71 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Tenant;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache; // <-- Wajib di-import untuk fitur Redis
 
 class UserController extends Controller
 {
     public function index(Request $request)
     {
-        // Kita mengambil nomor halaman (page) untuk membuat kunci cache yang dinamis
-        $page = $request->get('page', 1);
-        $cacheKey = 'users_list_page_' . $page;
-
-        // Logika Redis Caching:
+        // Kita tidak lagi melakukan cache pada paginator karena sering memicu error unserialize (Incomplete Object)
+        // di environment tertentu (terutama Redis). Pagination jauh lebih stabil jika di-query langsung.
+        
         if (auth()->user()->role === 'super_admin') {
-            // Super admin menggunakan cache standar (60 menit)
-            $users = Cache::remember($cacheKey . '_superadmin', 60 * 60, function () {
-                return User::with('tenant')->paginate(10);
-            });
+            $users = User::with('tenant')->paginate(10);
         } else {
-            // Tenant menggunakan "Cache Tags" yang eksklusif (Hanya didukung oleh Redis)
             $tenantId = auth()->user()->tenant_id;
-
-            $users = Cache::tags(['tenant_' . $tenantId])->remember($cacheKey, 60 * 60, function () {
-                return User::with('tenant')->paginate(10);
-            });
+            $users = User::with('tenant')->where('tenant_id', $tenantId)->paginate(10);
         }
 
         return Inertia::render('Users/Index', [
             'users' => $users
         ]);
+    }
+
+    public function create()
+    {
+        $tenants = [];
+        if (auth()->user()->role === 'super_admin') {
+            $tenants = Tenant::all();
+        }
+
+        return Inertia::render('Users/Create', [
+            'tenants' => $tenants
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $rules = [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+        ];
+
+        // Jika super_admin, maka wajib milih role dan tenant_id
+        if (auth()->user()->role === 'super_admin') {
+            $rules['role'] = 'required|in:tenant_admin,tenant_staff';
+            $rules['tenant_id'] = 'required|exists:tenants,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        $validated['password'] = Hash::make($validated['password']);
+
+        // Jika bukan super_admin, otomatis set role sebagai tenant_staff 
+        // (tenant_id akan otomatis diset oleh trait BelongsToTenant)
+        if (auth()->user()->role !== 'super_admin') {
+            $validated['role'] = 'tenant_staff';
+        }
+
+        User::create($validated);
+
+        // Cache Invalidation sudah tidak diperlukan karena kita mengambil data secara langsung (real-time)
+
+        return redirect()->route('users.index')->with('message', 'Pengguna berhasil ditambahkan!');
     }
 }

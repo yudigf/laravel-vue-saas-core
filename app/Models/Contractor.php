@@ -2,31 +2,32 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+
+use App\Traits\BelongsToTenant;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-class Tenant extends Model
+class Contractor extends Model
 {
-    /** @use HasFactory<\Database\Factories\TenantFactory> */
-    use HasFactory, LogsActivity;
+    use BelongsToTenant, LogsActivity;
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'slug'])
+            ->logOnly(['name', 'phone'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }
 
     protected $fillable = [
+        'tenant_id',
         'name',
-        'slug',
+        'phone'
     ];
 
-    public function users()
+    public function debts(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(Debt::class);
     }
 }

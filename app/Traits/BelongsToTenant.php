@@ -23,9 +23,18 @@ trait BelongsToTenant
 
         // 2. Hook Creating: Otomatis mengisi tenant_id saat menyimpan data baru (INSERT)
         static::creating(function (Model $model) {
-            if (auth()->hasUser() && auth()->user()->role !== 'super_admin') {
+            \Log::info("creating hook fired for " . get_class($model));
+            \Log::info("auth()->check(): " . (auth()->check() ? 'true' : 'false'));
+            if (auth()->check()) {
+                \Log::info("User role: " . auth()->user()->role);
+                \Log::info("User tenant_id: " . auth()->user()->tenant_id);
+            }
+            
+            // Gunakan check() di sini karena aman dari infinite loop (hanya saat insert)
+            if (auth()->check() && auth()->user()->role !== 'super_admin') {
                 // Otomatis menempelkan tenant_id sesuai dengan perusahaan si user
                 $model->tenant_id = auth()->user()->tenant_id;
+                \Log::info("tenant_id set to: " . $model->tenant_id);
             }
         });
     }

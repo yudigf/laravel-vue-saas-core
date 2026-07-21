@@ -34,5 +34,46 @@ class DatabaseSeeder extends Seeder
             'role' => 'tenant_admin',
             'tenant_id' => $tenant->id,
         ]);
+
+        // 4. Buat Data Mandor Dummy
+        $contractor1 = \App\Models\Contractor::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Pak Joko (Mandor Proyek A)',
+            'phone' => '081234567890'
+        ]);
+
+        $contractor2 = \App\Models\Contractor::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Pak Budi (Tukang Harian)',
+            'phone' => '089876543210'
+        ]);
+
+        // 5. Buat Data Kasbon Dummy
+        \App\Models\Debt::create([
+            'tenant_id' => $tenant->id,
+            'contractor_id' => $contractor1->id,
+            'amount' => 5000000,
+            'due_date' => now()->addDays(7),
+            'status' => 'unpaid',
+            'description' => 'Pinjaman untuk beli Semen 50 Sak dan Pasir 2 Kol Bak.'
+        ]);
+
+        \App\Models\Debt::create([
+            'tenant_id' => $tenant->id,
+            'contractor_id' => $contractor1->id,
+            'amount' => 1500000,
+            'due_date' => now()->addDays(14),
+            'status' => 'partial',
+            'description' => 'Pinjaman untuk bayar gaji tukang mingguan.'
+        ]);
+
+        \App\Models\Debt::create([
+            'tenant_id' => $tenant->id,
+            'contractor_id' => $contractor2->id,
+            'amount' => 300000,
+            'due_date' => now()->addDays(3),
+            'status' => 'unpaid',
+            'description' => 'Kasbon rokok dan makan siang.'
+        ]);
     }
 }
